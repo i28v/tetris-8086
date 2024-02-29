@@ -443,7 +443,6 @@ align 4
 put_piece:
     push ax
     push cx
-    push dx
     push si
     push di
     mov cx, 4 
@@ -472,7 +471,6 @@ put_piece:
 .end:
     pop di
     pop si
-    pop dx
     pop cx
     pop ax
     ret
