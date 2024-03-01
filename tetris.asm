@@ -6,6 +6,7 @@ jmp start
 align 4
 
 scoremsg db "Score:     0"
+linesmsg db "Lines:     0"
 
 TN db 0x01, 0x11, 0x21, 0x10, 0x32, 0x00
 dw 0x0000
@@ -77,6 +78,7 @@ board resb 200
 screen_buffer equ 0xB800
 
 score_offset equ 3360
+lines_offset equ 3520
 
 rotate_key equ 0x48
 down_key equ 0x50
@@ -84,9 +86,6 @@ left_key equ 0x4B
 right_key equ 0x4D
 drop_key equ 0x3920
 exit_key equ 0x1B
-
-random_multiplier equ 25173
-random_increment_value equ 13849
 
 moving_piece equ 0x23
 still_piece equ 0x63
@@ -181,6 +180,13 @@ start:
     movsb
     inc di
     loop .print_score 
+    lea si, [linesmsg]
+    mov di, lines_offset
+    mov cx, 12
+.print_lines:
+    movsb
+    inc di
+    loop .print_lines
     pop es
 .skip_board_update:
     mov ax, 0x0100
@@ -279,9 +285,16 @@ start:
     call put_piece
     mov dl, still_piece
     call put_piece
-    mov ax, random_multiplier
-    mul word [random_seed]
-    add ax, random_increment_value
+    mov ax, word [random_seed]
+    mov bx, ax
+    shl bx, 7
+    xor ax, bx
+    mov bx, ax
+    shr bx, 9
+    xor ax, bx
+    mov bx, ax
+    shl bx, 8
+    xor ax, bx
     mov word [random_seed], ax
     and ax, 7
     jz .is_zero
@@ -333,36 +346,23 @@ start:
 .no_line:
     pop cx
     loop .line_check_y
+    std
     mov dx, word [score]
     lea di, [scoremsg + 11]
-    std
-.div10:
-    mov ax, dx
-    mov bx, dx
-    shr dx, 1 
-    shr bx, 2 
-    add dx, bx 
-    mov bx, dx
-    shr bx, 4
-    add dx, bx
-    mov bx, dx
-    shr bx, 8
-    add dx, bx
-    shr dx, 3
-    mov bx, dx
-    shl bx, 2
-    add bx, dx
-    shl bx, 1
-    sub ax, bx
-    cmp ax, 10 
-    jl .skipcarry
-    inc dx
-    sub ax, 10
-.skipcarry:
+.write_score:
+    call div10
     or al, 0x30
     stosb
     test dx, dx
-    jnz .div10
+    jnz .write_score
+    mov dx, word [lines]
+    lea di, [linesmsg + 11]
+.write_lines:
+    call div10
+    or al, 0x30
+    stosb
+    test dx, dx
+    jnz .write_lines
     cld
     jmp .end_input
 .no_down:  
@@ -437,6 +437,35 @@ end:
     mov ax, 0x4C00
     int 0x21
     jmp $
+
+align 4
+
+div10:
+    push bx
+    mov ax, dx
+    mov bx, dx
+    shr dx, 1 
+    shr bx, 2 
+    add dx, bx 
+    mov bx, dx
+    shr bx, 4
+    add dx, bx
+    mov bx, dx
+    shr bx, 8
+    add dx, bx
+    shr dx, 3
+    mov bx, dx
+    shl bx, 2
+    add bx, dx
+    shl bx, 1
+    sub ax, bx
+    cmp ax, 10 
+    jl .skipcarry
+    inc dx
+    sub ax, 10
+.skipcarry:
+    pop bx
+    ret
 
 align 4
 
