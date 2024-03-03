@@ -135,9 +135,8 @@ start_game:
     dec dx
 .start_piece_is_zero:
     shl dx, 1
-    mov bx, starting_pieces
-    add bx, dx
-    mov ax, word [bx]
+    mov bx, dx
+    mov ax, word [starting_pieces + bx]
     mov word [current_piece_ptr], ax
     mov ah, 1
     mov cx, 0x2607
@@ -311,25 +310,23 @@ start_game:
 .not_at_top:
     mov dl, still_piece
     call put_piece
-    mov ax, word [random_seed]
-    mov bx, ax
-    shl bx, 7
-    xor ax, bx
-    mov bx, ax
-    shr bx, 9
-    xor ax, bx
-    mov bx, ax
-    shl bx, 8
-    xor ax, bx
-    mov word [random_seed], ax
-    and ax, 7
+    mov bx, word [random_seed]
+    mov ax, bx
+    shl ax, 7
+    xor bx, ax
+    mov ax, bx
+    shr ax, 9
+    xor bx, ax
+    mov ax, bx
+    shl ax, 8
+    xor bx, ax
+    mov word [random_seed], bx
+    and bx, 7
     jz .is_zero
-    dec ax
+    dec bx
 .is_zero:
-    shl ax, 1
-    mov bx, starting_pieces
-    add bx, ax
-    mov ax, word [bx]
+    shl bx, 1
+    mov ax, word [starting_pieces + bx]
     mov word [current_piece_ptr], ax 
     mov byte [piece_x], starting_x
     mov byte [piece_y], starting_y
