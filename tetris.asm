@@ -215,7 +215,6 @@ start_game:
     mov word [previous_piece_ptr], si
     mov al, byte [si + 5]
     and al, 0x0F
-    test al, al
     jnz .notzero
     add si, 8
     jmp .next
