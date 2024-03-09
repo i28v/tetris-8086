@@ -5,6 +5,35 @@ jmp start_game
 
 align 4
 
+screen_buffer equ 0xB800
+
+board_offset equ 64
+score_offset equ 3422
+lines_offset equ 3582
+
+rotate_key equ 0x48
+down_key equ 0x50
+left_key equ 0x4B
+right_key equ 0x4D
+drop_key equ 0x3920
+exit_key equ 0x1B
+
+moving_piece equ 0xDB
+still_piece equ 0xDF
+empty_space equ 0x20
+piece_mask equ 0xFB
+
+border_char equ 0x01BA
+
+starting_x equ 4
+starting_y equ 0
+
+starting_speed equ 20
+speed_change_threshold equ 3
+minimum_speed equ 4
+speed_decrement_value equ 2
+delay_in_microseconds equ 50000
+
 score_msg db "Score:     0"
 lines_msg db "Lines:     0"
 
@@ -63,70 +92,30 @@ dw 100
 dw 300
 dw 1200
 
-score resw 1
-lines resw 1
-piece_x resb 1
-piece_y resb 1
+board_top times 10 dw 0x0720
+board times 200 dw 0x0720
 
-drop resb 1
-board_update resb 1
-down_delay resb 1
-down_threshold resb 1
+score dw 0
+lines dw 0
+piece_x db starting_x
+piece_y db starting_y
 
-current_piece_ptr resw 1
-previous_piece_ptr resw 1
+drop db 0
+board_update db 1
+down_delay db 0
+down_threshold db starting_speed
 
-random_seed resw 1
+current_piece_ptr dw 0
+previous_piece_ptr dw 0
 
-running resb 1
+random_seed dw 0
 
-board resb 400 
-
-screen_buffer equ 0xB800
-
-
-board_offset equ 64
-score_offset equ 3422
-lines_offset equ 3582
-
-rotate_key equ 0x48
-down_key equ 0x50
-left_key equ 0x4B
-right_key equ 0x4D
-drop_key equ 0x3920
-exit_key equ 0x1B
-
-moving_piece equ 0xDB
-still_piece equ 0xDF
-empty_space equ 0x20
-piece_mask equ 0xFB
-
-border_char equ 0x01BA
-
-starting_x equ 4
-starting_y equ 0
-
-starting_speed equ 20
-speed_change_threshold equ 3
-minimum_speed equ 4
-speed_decrement_value equ 2
-delay_in_microseconds equ 50000
+running db 1 
 
 align 4
 
 start_game:
     cld
-    xor ax, ax
-    mov word [score], ax
-    mov word [lines], ax
-    mov word [previous_piece_ptr], ax
-    mov byte [drop], al
-    mov byte [down_delay], al
-    mov byte [down_threshold], starting_speed
-    mov byte [piece_x], starting_x
-    mov byte [piece_y], starting_y
-    mov byte [running], 1
-    mov byte [board_update], 1
     xor ah, ah
     int 0x1A
     mov word [random_seed], dx
@@ -172,10 +161,6 @@ start_game:
     inc di
     loop .draw_lines_text
     pop es
-    mov ax, 0x0720
-    mov di, board
-    mov cx, 200
-    rep stosw
 .main_loop:
     cmp byte [board_update], 1
     jne .skip_board_update
@@ -249,7 +234,7 @@ start_game:
     mov dl, al
     add ax, bx
     cmp ah, 10
-    jbe .check_y
+    jb .check_y
     mov dh, dl
     dec dh
 .check_y:
@@ -303,11 +288,6 @@ start_game:
     mov byte [drop], 0
     mov bh, byte [piece_x]
     mov bl, byte [piece_y]
-    cmp bl, 3 
-    ja .not_at_top
-    mov byte [running], 0
-    jmp .end_input
-.not_at_top:
     mov dl, still_piece
     call put_piece
     mov bx, word [random_seed]
@@ -328,12 +308,21 @@ start_game:
     shl bx, 1
     mov ax, word [starting_pieces + bx]
     mov word [current_piece_ptr], ax 
-    mov byte [piece_x], starting_x
-    mov byte [piece_y], starting_y
+    mov bh, starting_x
+    mov bl, starting_y
+    mov byte [piece_x], bh
+    mov byte [piece_y], bl
+    inc bl
+    xor dl, dl
+    call put_piece
+    test al, al
+    jz .check_lines
+    mov byte [running], 0
+    jmp .end_input 
 .check_lines:
-    xor si, si
-    mov bx, board + 40
-    mov cx, 18 
+    mov si, score_multipliers
+    mov bx, board
+    mov cx, 20
 .line_check_y:
     xor al, al
     push cx
@@ -348,9 +337,10 @@ start_game:
     test al, al
     jnz .no_line
     add si, 2
-    mov ax, word [lines]
     inc word [lines]
-    and ax, speed_change_threshold
+    mov dx, word [lines]
+    call div10
+    test ax, ax
     jnz .no_speed_increase
     cmp byte [down_threshold], minimum_speed 
     jbe .no_speed_increase
@@ -359,7 +349,7 @@ start_game:
     push bx
 .remove_line:
     sub bx, 2
-    cmp bx, board + 40
+    cmp bx, board
     jb .remove_line_done
     mov ax, word [bx - 20]
     mov word [bx], ax
@@ -369,7 +359,7 @@ start_game:
 .no_line:
     pop cx
     loop .line_check_y
-    mov ax, word [score_multipliers + si]
+    lodsw
     add word [score], ax
     mov dx, word [score]
     mov di, score_msg + 11
