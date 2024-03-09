@@ -17,6 +17,7 @@ left_key equ 0x4B
 right_key equ 0x4D
 drop_key equ 0x3920
 exit_key equ 0x1B
+pause_key equ 'p'
 
 moving_piece equ 0xDB
 still_piece equ 0xDF
@@ -110,6 +111,7 @@ previous_piece_ptr dw 0
 
 random_seed dw 0
 
+paused db 0
 running db 1 
 
 align 4
@@ -163,7 +165,7 @@ start_game:
     pop es
 .main_loop:
     cmp byte [board_update], 1
-    jne .skip_board_update
+    jne .get_input
     mov byte [board_update], 0
     mov bh, byte [piece_x]
     mov bl, byte [piece_y]
@@ -202,13 +204,25 @@ start_game:
     inc di
     loop .print_lines
     pop es
-.skip_board_update:
+.get_input:
+    xor cx, cx
+    mov dx, delay_in_microseconds
+    mov ah, 0x86
+    int 0x15
     mov ax, 0x0100
     int 0x16
     push ax
     mov ax, 0x0C00
     int 0x21
     pop ax
+    cmp al, pause_key
+    jne .no_pause
+    xor byte [paused], 1
+.no_pause:
+    cmp al, exit_key
+    je end_game
+    cmp byte [paused], 1
+    je .get_input
     cmp ah, rotate_key
     jne .no_rotate
     mov si, word [current_piece_ptr]
@@ -420,11 +434,6 @@ start_game:
     mov byte [board_update], 1
     jmp .end_input
 .no_right:
-    cmp al, exit_key
-    jne .no_esc
-    mov byte [running], 0
-    jmp .end_input
-.no_esc:
     cmp ax, drop_key
     jne .end_input
     mov byte [drop], 1
@@ -434,10 +443,6 @@ start_game:
     cmp byte [down_delay], al
     jae .auto_down
     inc byte [down_delay]
-    xor cx, cx
-    mov dx, delay_in_microseconds
-    mov ah, 0x86
-    int 0x15
     cmp byte [running], 1
     je .main_loop
 end_game:
