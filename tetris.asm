@@ -33,7 +33,7 @@ starting_speed equ 20
 speed_change_threshold equ 3
 minimum_speed equ 4
 speed_decrement_value equ 2
-delay_in_microseconds equ 50000
+delay_in_microseconds equ 64000
 
 score_msg db "Score:     0"
 lines_msg db "Lines:     0"
@@ -205,10 +205,6 @@ start_game:
     loop .print_lines
     pop es
 .get_input:
-    xor cx, cx
-    mov dx, delay_in_microseconds
-    mov ah, 0x86
-    int 0x15
     mov ax, 0x0100
     int 0x16
     push ax
@@ -222,7 +218,13 @@ start_game:
     cmp al, exit_key
     je end_game
     cmp byte [paused], 1
-    je .get_input
+    jne .not_paused
+    xor cx, cx
+    mov dx, delay_in_microseconds
+    mov ah, 0x86
+    int 0x15
+    jmp .get_input
+.not_paused:
     cmp ah, rotate_key
     jne .no_rotate
     mov si, word [current_piece_ptr]
@@ -443,6 +445,10 @@ start_game:
     cmp byte [down_delay], al
     jae .auto_down
     inc byte [down_delay]
+    xor cx, cx
+    mov dx, delay_in_microseconds
+    mov ah, 0x86
+    int 0x15
     cmp byte [running], 1
     je .main_loop
 end_game:
