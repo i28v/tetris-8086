@@ -29,6 +29,8 @@ border_char equ 0x01BA
 starting_x equ 4
 starting_y equ 0
 
+starting_pos equ starting_y | (starting_x << 8)
+
 starting_speed equ 20
 speed_change_threshold equ 3
 minimum_speed equ 4
@@ -98,8 +100,10 @@ board times 200 dw 0x0720
 
 score dw 0
 lines dw 0
-piece_x db starting_x
+
+piece_pos:
 piece_y db starting_y
+piece_x db starting_x
 
 drop db 0
 board_update db 1
@@ -112,7 +116,6 @@ previous_piece_ptr dw 0
 random_seed dw 0
 
 paused db 0
-running db 1 
 
 align 4
 
@@ -167,8 +170,7 @@ start_game:
     cmp byte [board_update], 1
     jne .get_input
     mov byte [board_update], 0
-    mov bh, byte [piece_x]
-    mov bl, byte [piece_y]
+    mov bx, word [piece_pos]
     mov dl, moving_piece
     mov si, word [current_piece_ptr]
     call put_piece
@@ -240,8 +242,7 @@ start_game:
     mov si, word [si + 6]
 .next:
     xor dh, dh
-    mov bh, byte [piece_x]
-    mov bl, byte [piece_y]
+    mov bx, word [piece_pos]
     mov al, byte [si + 4]
     mov ah, al 
     and al, 0x0F
@@ -277,19 +278,17 @@ start_game:
     mov byte [down_delay], 0
 .down:
     mov si, word [current_piece_ptr]
-    mov bh, byte [piece_x]
-    mov bl, byte [piece_y]
+    mov bx, word [piece_pos]
     mov dl, empty_space
     call put_piece
     mov byte [board_update], 1
 .down_loop:
     mov al, byte [si + 4]
     and al, 0x0F
-    mov bl, byte [piece_y]
+    mov bx, word [piece_pos]
     add al, bl
     cmp al, 20
     jae .set_piece
-    mov bh, byte [piece_x]
     inc bl
     xor dl, dl
     call put_piece
@@ -301,8 +300,7 @@ start_game:
     jmp .end_input
 .set_piece:
     mov byte [drop], 0
-    mov bh, byte [piece_x]
-    mov bl, byte [piece_y]
+    mov bx, word [piece_pos]
     mov dl, still_piece
     call put_piece
     mov bx, word [random_seed]
@@ -323,18 +321,13 @@ start_game:
     shl bx, 1
     mov ax, word [starting_pieces + bx]
     mov word [current_piece_ptr], ax 
-    mov bh, starting_x
-    mov bl, starting_y
-    mov byte [piece_x], bh
-    mov byte [piece_y], bl
+    mov bx, starting_pos
+    mov word [piece_pos], bx
     inc bl
     xor dl, dl
     call put_piece
     test al, al
-    jz .check_lines
-    mov byte [running], 0
-    jmp .end_input 
-.check_lines:
+    jnz end_game
     mov si, score_multipliers
     mov bx, board
     mov cx, 20
@@ -398,11 +391,10 @@ start_game:
 .no_down:  
     cmp ah, left_key
     jne .no_left
-    mov bh, byte [piece_x]
+    mov bx, word [piece_pos]
     test bh, bh
     jz .end_input
     dec bh
-    mov bl, byte [piece_y]
     xor dl, dl
     mov si, word [current_piece_ptr]
     call put_piece
@@ -417,12 +409,11 @@ start_game:
     mov si, word [current_piece_ptr]
     mov ah, byte [si + 4]
     shr ah, 4
-    mov bh, byte [piece_x]
+    mov bx, word [piece_pos]
     add ah, bh
     cmp ah,  10
     je .end_input
     inc bh
-    mov bl, byte [piece_y]
     xor dl, dl
     call put_piece
     test al, al
@@ -449,8 +440,7 @@ start_game:
     mov dx, delay_in_microseconds
     mov ah, 0x86
     int 0x15
-    cmp byte [running], 1
-    je .main_loop
+    jmp .main_loop
 end_game:
     mov ah, 1
     mov cx, 0x0607
