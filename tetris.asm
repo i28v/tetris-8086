@@ -328,20 +328,19 @@ start_game:
     call put_piece
     test al, al
     jnz end_game
-    std
     mov si, score_multipliers
-    mov di, board
+    mov bx, board
     mov cx, 20
 .line_check_y:
     xor al, al
     push cx
     mov cx, 10
 .line_check_x:
-    cmp byte [di], still_piece
+    cmp byte [bx], still_piece
     je .line_check_x_done
     mov al, 1 
 .line_check_x_done:
-    add di, 2
+    add bx, 2
     loop .line_check_x
     test al, al
     jnz .no_line
@@ -355,25 +354,24 @@ start_game:
     jbe .no_speed_increase
     sub byte [down_threshold], speed_decrement_value
 .no_speed_increase:
-    push cx
-    push si
-    push di
-    lea si, word [di - 20]
-    lea cx, word [di - board]
-    shr cx, 1
-    rep movsw
-    pop di
-    pop si
-    pop cx
+    push bx
+.remove_line:
+    sub bx, 2
+    cmp bx, board
+    jb .remove_line_done
+    mov ax, word [bx - 20]
+    mov word [bx], ax
+    jmp .remove_line
+.remove_line_done:
+    pop bx
 .no_line:
     pop cx
     loop .line_check_y
-    cld
     lodsw
     add word [score], ax
-    std
     mov dx, word [score]
     mov di, score_msg + 11
+    std
 .write_score:
     call div10
     or al, 0x30
