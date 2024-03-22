@@ -95,7 +95,7 @@ dw 100
 dw 300
 dw 1200
 
-board_top times 10 dw 0x0720
+board_top times 20 dw 0x0720
 board times 200 dw 0x0720
 
 score dw 0
@@ -267,7 +267,7 @@ start_game:
     mov si, word [previous_piece_ptr]
     call put_piece
     pop si
-    mov word [current_piece_ptr], si 
+    mov word [current_piece_ptr], si
     sub byte [piece_x], dh
     mov byte [board_update], 1
     jmp .end_input
@@ -328,50 +328,48 @@ start_game:
     call put_piece
     test al, al
     jnz end_game
-    mov si, score_multipliers
-    mov bx, board
+    std
+    mov di, board
+    mov bx, score_multipliers
     mov cx, 20
 .line_check_y:
-    xor al, al
     push cx
     mov cx, 10
 .line_check_x:
-    cmp byte [bx], still_piece
-    je .line_check_x_done
-    mov al, 1 
-.line_check_x_done:
-    add bx, 2
+    cmp byte [di], still_piece
+    je .piece
+    xor al, al
+    shl cx, 1
+    add di, cx
+    jmp .line_check_done
+.piece:
+    add di, 2
     loop .line_check_x
-    test al, al
-    jnz .no_line
-    add si, 2
+.line:
+    add bx, 2
     inc word [lines]
     mov dx, word [lines]
     call div10
     test ax, ax
-    jnz .no_speed_increase
+    jnz .move_lines
     cmp byte [down_threshold], minimum_speed 
-    jbe .no_speed_increase
+    jbe .move_lines
     sub byte [down_threshold], speed_decrement_value
-.no_speed_increase:
-    push bx
-.remove_line:
-    sub bx, 2
-    cmp bx, board
-    jb .remove_line_done
-    mov ax, word [bx - 20]
-    mov word [bx], ax
-    jmp .remove_line
-.remove_line_done:
-    pop bx
-.no_line:
+.move_lines:
+    push di
+    sub di, 2
+    lea si, [di - 20]
+    lea cx, [di - board]
+    shr cx, 1
+    rep movsw
+    pop di
+.line_check_done:
     pop cx
     loop .line_check_y
-    lodsw
+    mov ax, word [bx]
     add word [score], ax
     mov dx, word [score]
     mov di, score_msg + 11
-    std
 .write_score:
     call div10
     or al, 0x30
