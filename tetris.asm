@@ -26,6 +26,10 @@ piece_mask equ 0xFB
 
 border_char equ 0x01BA
 
+paused       equ 1
+board_update equ 1 << 1
+drop         equ 1 << 2
+
 starting_x equ 4
 starting_y equ 0
 
@@ -105,8 +109,8 @@ piece_pos:
 piece_y db starting_y
 piece_x db starting_x
 
-drop db 0
-board_update db 1
+flags db board_update
+
 down_delay db 0
 down_threshold db starting_speed
 
@@ -114,8 +118,6 @@ current_piece_ptr dw 0
 previous_piece_ptr dw 0
 
 random_seed dw 0
-
-paused db 0
 
 align 4
 
@@ -167,9 +169,9 @@ start_game:
     loop .draw_lines_text
     pop es
 .main_loop:
-    cmp byte [board_update], 1
-    jne .get_input
-    mov byte [board_update], 0
+    test byte [flags], board_update
+    jz .get_input
+    and byte [flags], ~board_update
     mov bx, word [piece_pos]
     mov dl, moving_piece
     mov si, word [current_piece_ptr]
@@ -215,12 +217,12 @@ start_game:
     pop ax
     cmp al, pause_key
     jne .no_pause
-    xor byte [paused], 1
+    xor byte [flags], paused
 .no_pause:
     cmp al, exit_key
     je end_game
-    cmp byte [paused], 1
-    jne .not_paused
+    test byte [flags], paused
+    jz .not_paused
     xor cx, cx
     mov dx, delay_in_microseconds
     mov ah, 0x86
@@ -269,7 +271,7 @@ start_game:
     pop si
     mov word [current_piece_ptr], si
     sub byte [piece_x], dh
-    mov byte [board_update], 1
+    or byte [flags], board_update
     jmp .end_input
 .no_rotate:
     cmp ah, down_key
@@ -281,7 +283,7 @@ start_game:
     mov bx, word [piece_pos]
     mov dl, empty_space
     call put_piece
-    mov byte [board_update], 1
+    or byte [flags], board_update
 .down_loop:
     mov al, byte [si + 4]
     and al, 0x0F
@@ -295,11 +297,11 @@ start_game:
     test al, al
     jnz .set_piece
     mov byte [piece_y], bl
-    cmp byte [drop], 1
-    je .down_loop
+    test byte [flags], drop
+    jnz .down_loop
     jmp .end_input
 .set_piece:
-    mov byte [drop], 0
+    and byte [flags], ~drop
     mov bx, word [piece_pos]
     mov dl, still_piece
     call put_piece
@@ -338,7 +340,6 @@ start_game:
 .line_check_x:
     cmp byte [di], still_piece
     je .piece
-    xor al, al
     shl cx, 1
     add di, cx
     jmp .line_check_done
@@ -422,12 +423,12 @@ start_game:
     mov dl, empty_space
     mov si, word [current_piece_ptr]
     call put_piece
-    mov byte [board_update], 1
+    or byte [flags], board_update
     jmp .end_input
 .no_right:
     cmp ax, drop_key
     jne .end_input
-    mov byte [drop], 1
+    or byte [flags], drop
     jmp .down
 .end_input:
     mov al, byte [down_threshold]
