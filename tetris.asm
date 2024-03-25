@@ -403,6 +403,7 @@ start_game:
 .no_left:
     cmp ah, right_key
     jne .no_right
+    mov si, word [current_piece_ptr]
     mov ah, byte [si + 4]
     shr ah, 4
     mov bx, word [piece_pos]
@@ -410,7 +411,6 @@ start_game:
     cmp ah,  10
     je .end_input
     inc bh
-    mov si, word [current_piece_ptr]
     xor dl, dl
     call put_piece
     test al, al
