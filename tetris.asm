@@ -115,7 +115,6 @@ down_delay db 0
 down_threshold db starting_speed
 
 current_piece_ptr dw 0
-previous_piece_ptr dw 0
 
 random_seed dw 0
 
@@ -173,8 +172,8 @@ start_game:
     jz .get_input
     and byte [flags], ~board_update
     mov bx, word [piece_pos]
-    mov dl, moving_piece
     mov si, word [current_piece_ptr]
+    mov dl, moving_piece
     call put_piece
     push es
     mov ax, screen_buffer
@@ -232,7 +231,6 @@ start_game:
     cmp ah, rotate_key
     jne .no_rotate
     mov si, word [current_piece_ptr]
-    mov word [previous_piece_ptr], si
     mov al, byte [si + 5]
     and al, 0x0F
     jnz .notzero
@@ -264,9 +262,9 @@ start_game:
     test al, al
     jnz .end_input
     add bh, dh
-    mov dl, empty_space
     push si
-    mov si, word [previous_piece_ptr]
+    mov si, word [current_piece_ptr]
+    mov dl, empty_space
     call put_piece
     pop si
     mov word [current_piece_ptr], si
@@ -279,8 +277,8 @@ start_game:
 .auto_down:
     mov byte [down_delay], 0
 .down:
-    mov si, word [current_piece_ptr]
     mov bx, word [piece_pos]
+    mov si, word [current_piece_ptr]
     mov dl, empty_space
     call put_piece
     or byte [flags], board_update
@@ -394,8 +392,8 @@ start_game:
     test bh, bh
     jz .end_input
     dec bh
-    xor dl, dl
     mov si, word [current_piece_ptr]
+    xor dl, dl
     call put_piece
     test al, al
     jnz .end_input
@@ -405,7 +403,6 @@ start_game:
 .no_left:
     cmp ah, right_key
     jne .no_right
-    mov si, word [current_piece_ptr]
     mov ah, byte [si + 4]
     shr ah, 4
     mov bx, word [piece_pos]
@@ -413,6 +410,7 @@ start_game:
     cmp ah,  10
     je .end_input
     inc bh
+    mov si, word [current_piece_ptr]
     xor dl, dl
     call put_piece
     test al, al
@@ -421,7 +419,6 @@ start_game:
     dec bh
 .end_horizontal_move:
     mov dl, empty_space
-    mov si, word [current_piece_ptr]
     call put_piece
     or byte [flags], board_update
     jmp .end_input
